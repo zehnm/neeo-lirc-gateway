@@ -1,0 +1,32 @@
+{
+  "name": "neeo-lirc-gateway",
+  "version": "0.0.1",
+  "description": "This driver adds LIRC irsend support to NEEO",
+  "main": "index.js",
+  "dependencies": {
+    "neeo-sdk": "*",
+    "lirc-client": "*"
+  },
+  "engines": {
+    "node": ">=6.0.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zehnm/neeo-lirc-gateway.git"
+  },
+  "keywords": [
+    "LIRC",
+    "irsend",
+    "Server",
+    "NEEO"
+  ],
+  "author": "Markus Zehnder",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/zehnm/neeo-lirc-gateway/issues"
+  },
+  "homepage": "https://github.com/zehnm/neeo-lirc-gateway"
+}

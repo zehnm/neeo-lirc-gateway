@@ -1,0 +1,115 @@
+{
+    "KEY_DISPLAYTOGGLE" : {
+        "label" : "Display"
+    },
+    "KEY_POWER" : {
+        "name"   : "POWER TOGGLE"
+    },
+    "SRC_DRA_ANALOG" : {
+        "name"   : "INPUT ANALOG"
+    },
+    "SRC_DRA_DIGITAL" : {
+        "name"   : "INPUT DIGITAL"
+    },
+    "SRC_DRA_TUNER" : {
+        "name"   : "INPUT TUNER"
+    },
+    "SRC_DNP_INTERNET_RADIO" : {
+        "name"   : "INPUT INTERNET RADIO"
+    },
+    "SRC_DNP_ONLINE_MUSIC" : {
+        "name"   : "INPUT ONLINE MUSIC"
+    },
+    "SRC_DNP_MUSIC_SERVER" : {
+        "name"   : "INPUT MUSIC SERVER"
+    },
+    "SRC_DNP_USB" : {
+        "label"  : "Input USB",
+        "name"   : "INPUT USB"
+    },
+    "SRC_DCD_CD" : {
+        "label"  : "Input CD",
+        "name"   : "INPUT CD"
+    },
+    "SRC_DCD_USB" : {
+        "label" : "Input DCD USB",
+        "name"   : "INPUT DCD_USB"
+    },
+    "KEY_PREVIOUSSONG" : {
+        "label" : "Previous Song",
+        "name"   : "PREVIOUS"
+    },
+    "KEY_PLAY_PAUSE" : {
+        "name"   : "PLAY"
+    },
+    "KEY_NEXTSONG" : {
+        "label" : "Next Song",
+        "name"   : "NEXT"
+    },
+    "KEY_REWIND" : {
+        "label" : "Rewind",
+        "name"   : "REVERSE"
+    },
+    "KEY_FORWARD" : {
+        "label" : "Forward",
+        "name"   : "FORWARD"
+    },
+    "KEY_MUTE" : {
+        "name"   : "MUTE TOGGLE"
+    },
+    "KEY_VOLUMEUP" : {
+        "name"   : "VOLUME UP"
+    },
+    "KEY_VOLUMEDOWN" : {
+        "name"   : "VOLUME DOWN"
+    },
+    "KEY_UP" : {
+        "name"   : "CURSOR UP"
+    },
+    "KEY_DOWN" : {
+        "name"   : "CURSOR DOWN"
+    },
+    "KEY_LEFT" : {
+        "name"   : "CURSOR LEFT"
+    },
+    "KEY_RIGHT" : {
+        "name"   : "CURSOR RIGHT"
+    },
+    "KEY_ENTER" : {
+        "name"   : "CURSOR ENTER"
+    },
+    "KEY_1" : {
+        "name"   : "DIGIT 1"
+    },
+    "KEY_2" : {
+        "name"   : "DIGIT 2"
+    },
+    "KEY_3" : {
+        "name"   : "DIGIT 3"
+    },
+    "KEY_4" : {
+        "name"   : "DIGIT 4"
+    },
+    "KEY_5" : {
+        "name"   : "DIGIT 5"
+    },
+    "KEY_6" : {
+        "name"   : "DIGIT 6"
+    },
+    "KEY_7" : {
+        "name"   : "DIGIT 7"
+    },
+    "KEY_8" : {
+        "name"   : "DIGIT 8"
+    },
+    "KEY_9" : {
+        "name"   : "DIGIT 9"
+    },
+    "KEY_10" : {
+        "label" : "+10",
+        "name"   : "PLUS 10"
+    },
+    "KEY_0" : {
+        "name"   : "DIGIT 0"
+    }
+}
