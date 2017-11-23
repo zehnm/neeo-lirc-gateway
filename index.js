@@ -20,12 +20,14 @@
  * Needs lots of improvements...
  * 
  * Tested with:
- * - Node.js v6.12.0
+ * - Node.js v8.9.1
  * - NEEO SDK 0.47.8 https://github.com/NEEOInc/neeo-sdk
  * - LIRC 0.9.0-pre1 running on Raspbian Stretch light (2017-09-07)
  */
 
 const neeoapi = require('neeo-sdk');
+const NeeoDevice = require('./neeoDevice');
+const wait = require('wait.for');
 
 // default configuration with required parameters. Customize in config.json
 // Optional: neeo.brainIp, neeo.callbackIp
@@ -41,10 +43,6 @@ var config = {
 
 // LIRC key to NEEO mappings
 const keyMap = require(__dirname + '/key-mapping.json');
-// Reverse NEEO name to LIRC key map
-var neeoButtonMap = new Map();
-// FIXME create map: NEEO deviceId -> LIRC remote name
-var lircRemoteName;
 
 
 console.log('NEEO device "LIRC gateway" PoC');
@@ -54,161 +52,133 @@ console.log('---------------------------------------------');
 try {
   config = require(__dirname + '/config.json');
 } catch (e) {
-  console.log('WARNING: Cannot find config.json! Using default values.');
+  console.warn('WARNING: Cannot find config.json! Using default values.');
 }
 
-// Quick and dirty proof of concept at the moment
-var neeoLircDevice = neeoapi.buildDevice('irsend gateway') // TODO include remote name
-  .setManufacturer('LIRC')
-  .addAdditionalSearchToken('SDK')
-  .addAdditionalSearchToken('irsend')
-  .setType('MEDIAPLAYER') // TODO: better device type available? This is super annoying with NEEO's cable salad insisting on TV or AVR :-(
-  .addButtonHander((name, deviceid) => neeoButtonPressed(name, deviceid));
+var neeoDevices = [];
 
-console.log('Connecting to LIRC server %s:%d ...', config.lirc.host, config.lirc.port)
+console.log('[LIRC] Connecting to LIRC daemon on %s:%d ...', config.lirc.host, config.lirc.port)
 // TODO add socket option if irsend is on same host
 var lirc = require('lirc-client')({
   host: config.lirc.host,
   port: config.lirc.port
 });
 
-// FIXME LIRC auto-reconnect if initial connection failed
-// FIXME rewrite initialization code. Wait for LIRC connection, then build device(s)
+lirc.on('error', function(err) {
+  if (err == 'end' || err == 'timeout' || err.startsWith('response timeout')) {
+    // lirc-client will auto-reconnect for those errors
+    console.error("ERROR [LIRC]", err);
+    return;
+  }
+
+  // TODO LIRC auto-reconnect if initial connection failed? Or let external caller handle it? 
+  console.error("FATAL [LIRC]", err);
+  process.exit(8);
+});
+
 lirc.on('connect', function () {
-  lirc.cmd('VERSION', function (err, versionResult) {
-    if (err) {
-      console.log('[LIRC] Error getting LIRC version', err);
-      process.exit(1);
-    }
-    if (versionResult) {
-      console.log('[LIRC] Connected to LIRC Version', versionResult.toString());
-    }
-  });
+  wait.launchFiber(buildLircDevices);
+});
 
-  console.log('Retrieving available remotes from LIRC...');
-  lirc.cmd('LIST', '', '', function (err, remotesResult) {
-    if (err) {
-      console.log('[LIRC] LIST failed:', err);
-      process.exit(1);
-    }
-    if (remotesResult) {
-      console.log('[LIRC] Available remotes:', remotesResult.toString());
-      // FIXME create individual NEEO devices for each remote
-      if (remotesResult.length > 1) {
-        console.log('Warning: PoC only supports one LIRC remote. Using first remote...');
+
+// FIXME rewrite device building
+function buildLircDevices() {
+  try {
+    var versionResult = wait.for(lirc.cmd, 'VERSION');
+    console.log('[LIRC] Connected to lircd: version', versionResult.toString());
+
+    console.log('[LIRC] Retrieving available remotes from LIRC...');
+    var remotesResult = wait.for(lirc.cmd, 'LIST', '', '');
+    console.log('[LIRC] Available remotes:', remotesResult.toString());
+
+    for (var i in remotesResult) {
+      var remote = remotesResult[i];
+      console.log('[LIRC] Retrieving commands of remote "%s"', remote);
+      var remoteCommands = wait.for(lirc.cmd, 'LIST', remote, '');
+
+      // Quick and dirty proof of concept at the moment
+      var neeoLircDevice = new NeeoDevice(lirc, remote);
+
+      for (var index in remoteCommands) {
+        var lircCmd = remoteCommands[index].split(' ')[1];
+        if (!lircCmd) {
+          console.error('ERROR [LIRC] %s: Parsing error remote command at index %d: %s', remote, index, remoteCommands[index]);
+          continue;
+        }
+        var neeoCmd = keyMap[lircCmd];
+        var neeoLabel = undefined;
+        var neeoName = undefined;
+        if (neeoCmd) {
+          // use defined mapping
+          neeoLabel = neeoCmd.label;
+          neeoName = neeoCmd.name ? neeoCmd.name : lircCmd;
+        } else if (lircCmd.startsWith("KEY_")) {
+          neeoName = lircCmd.substring(4).replace('_', ' ');
+        } else if (lircCmd.startsWith("SRC_")) {
+          neeoName = 'INPUT ' + lircCmd.substring(4).replace('_', ' ');
+        } else {
+          console.warn('WARN  [LIRC] %s: Command %s could not be mapped! Either define key mapping in configuration or use key naming convention (prefixes: KEY_ and SRC_).', remote, lircCmd);
+          continue;
+        }
+        if (!neeoLabel) {
+          neeoLabel = toTitleCase(neeoName);
+        }
+        console.log('[LIRC] %s: %s -> NEEO "%s" (%s)', remote, lircCmd, neeoName, neeoLabel);
+        neeoLircDevice.addButton(neeoName, neeoLabel, lircCmd)
       }
-      for (var i in remotesResult) {
-        var remote = remotesResult[i]
-        lircRemoteName = remote; // FIXME PoC hack
-        lirc.cmd('LIST', remote, '', function (err, remoteCommands) {
-          if (err) {
-            console.log('[LIRC] LIST of remote %s failed: %s', remote, err);
-            process.exit(1);
-          }
-          if (remoteCommands) {
-            for (var index in remoteCommands) {
-              var lircCmd = remoteCommands[index].split(' ')[1];
-              var neeoCmd = keyMap[lircCmd];
-              var neeoLabel = undefined;
-              var neeoName;
-              if (neeoCmd) {
-                // use defined mapping
-                neeoLabel = neeoCmd.label;
-                neeoName = neeoCmd.name ? neeoCmd.name : lircCmd;
-              } else if (lircCmd.startsWith("KEY_")) {
-                neeoName = lircCmd.substring(4).replace('_', ' ');
-              } else if (lircCmd.startsWith("SRC_")) {
-                neeoName = 'INPUT ' + lircCmd.substring(4).replace('_', ' ');
-              } else {
-                console.log('[LIRC] Warning: command %s could not be mapped! Either define key mapping in configuration or use key naming convention (prefixes: KEY_ and SRC_).', lircCmd);
-                continue;
-              }
-              if (!neeoLabel) {
-                neeoLabel = toTitleCase(neeoName);
-              }
-              console.log('[LIRC] %s: %s -> NEEO "%s" (%s)', remote, lircCmd, neeoName, neeoLabel);
-              neeoButtonMap.set(neeoName, lircCmd);
-              neeoLircDevice.addButton({ name: neeoName, label: neeoLabel });
-            }
-          }
 
-          var brainIp = process.env.BRAINIP;
-          var baseurl = undefined;
+      neeoDevices.push(neeoLircDevice.getDevice());
+    }
 
-          if (brainIp) {
-            console.log('- use NEEO Brain IP from env variable: ', brainIp);
-          } else if (config.neeo.brainIp) {
-            brainIp = config.neeo.brainIp;
-            console.log('- use NEEO Brain IP from configuration: ', brainIp);
-          }
+    var brainIp = process.env.BRAINIP;
+    var baseurl = undefined;
 
-          // baseurl must be set for certain network setup (i.e. Windows with Hyper-V) until SDK is fixed.
-          // See forum and related issue with auto-discovery: https://github.com/NEEOInc/neeo-sdk/issues/36
-          if (config.neeo.callbackIp) {
-            baseurl = 'http://' + config.neeo.callbackIp + ':' + config.neeo.callbackPort;
-          }
+    if (brainIp) {
+      console.log('[NEEO] Using NEEO Brain IP from env variable: ', brainIp);
+    } else if (config.neeo.brainIp) {
+      brainIp = config.neeo.brainIp;
+      console.log('[NEEO] Using NEEO Brain IP from configuration: ', brainIp);
+    }
 
-          if (brainIp) {
-            startDeviceServer(brainIp, config.neeo.callbackPort, baseurl);
-          } else {
-            console.log('- discover one NEEO Brain...');
-            neeoapi.discoverOneBrain()
-              .then((brain) => {
-                console.log('- Brain discovered:', brain.name, baseurl);
-                startDeviceServer(brain, config.neeo.callbackPort, baseurl);
-              });
-          }
+    // baseurl must be set for certain network setup (i.e. Windows with Hyper-V) until SDK is fixed.
+    // See forum and related issue with auto-discovery: https://github.com/NEEOInc/neeo-sdk/issues/36
+    if (config.neeo.callbackIp) {
+      baseurl = 'http://' + config.neeo.callbackIp + ':' + config.neeo.callbackPort;
+    }
 
+    if (brainIp) {
+      startDeviceServer(brainIp, config.neeo.callbackPort, baseurl);
+    } else {
+      console.log('[NEEO] discover one NEEO Brain...');
+      neeoapi.discoverOneBrain()
+        .then((brain) => {
+          console.log('[NEEO] Brain discovered:', brain.name, baseurl);
+          startDeviceServer(brain, config.neeo.callbackPort, baseurl);
         });
-
-        break; // FIXME PoC hack
-      }
     }
-  });
-});
 
-// just for testing...
-lirc.on('receive', function (remote, button, repeat) {
-  console.log('button ' + button + ' on remote ' + remote + ' was pressed!');
-});
-
+  } catch(err) {
+      console.error("FATAL [LIRC]", err);
+      process.exit(1);
+  }
+}
 
 function startDeviceServer(brain, port, callbackBaseurl) {
-  console.log('- Start server');
+  console.log('[NEEO] Starting server...');
   neeoapi.startServer({
     brain,
     port,
     baseurl: callbackBaseurl,
     name: 'lirc-gateway',
-    devices: [neeoLircDevice]
+    devices: neeoDevices
   })
     .then(() => {
-      console.log('# READY! use the NEEO app to search for "LIRC gateway".');
+      console.log('[NEEO] API server ready! Use the NEEO app to search for "LIRC gateway".');
     })
     .catch((error) => {
-      console.error('ERROR!', error.message);
-      process.exit(1);
+      console.error('FATAL [NEEO] Error starting device server!', error.message);
+      process.exit(9);
     });
-}
-
-function neeoButtonPressed(name, deviceid) {
-  // FIXME map NEEO device back to LIRC remote name
-  // TOOD how to set or get a unique deviceid and not just 'default'?
-  var lircName = lircRemoteName;
-  
-  var lircKey = neeoButtonMap.get(name);
-  if (lircKey) {
-    console.log('ButtonPressed "%s" on %s: Sending LIRC key %s', name, deviceid, lircKey);
-
-    // TODO use SEND_START and SEND_STOP for repeatable buttons like volume up / down
-    lirc.cmd('SEND_ONCE', lircName, lircKey, function (err) {
-      if (err) {
-        console.log('[LIRC] SEND_ONCE failed:', err);
-      }
-    });
-  } else {
-    console.log('Warning: Undefined LIRC key for ButtonPressed "%s" on %s.', name, deviceid);
-  }
 }
 
 function toTitleCase(str) {

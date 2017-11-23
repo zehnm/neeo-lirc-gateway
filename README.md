@@ -11,6 +11,7 @@ This NEEO driver can run anywhere on the network, even on a Windows machine, as 
 I'm running lircd on a Raspberry Zero-W and the driver on a Linux Intel server.
 
 **Attention: proof of concept only!**
+
 Needs lots of improvements and this is my first Node.js hack...
 
 Tested with:
@@ -41,15 +42,20 @@ npm install
 ## Configuration
 **Edit the config.json file to adjust the driver settings** 
  - neeo.brainIp : IP address of the NEEO brain (optional).
+
    Auto discovery is active if not specified. 
    See issue: https://github.com/NEEOInc/neeo-sdk/issues/36
+
  - neeo.callbackIp : IP address of machine running the driver (optional).
+
    Most likely required if auto discovery doesn't work.
+
  - neeo.callbackPort : local port number for device server
  - lirc.host : host name or address of lircd
  - lirc.port : port number of lircd
 
-**Edit the key-mapping.json file to adjust LIRC to NEEO mappings** 
+**Edit the key-mapping.json file to adjust LIRC to NEEO mappings**
+
  LIRC keys are automatically mapped if the name starts with prefix 'KEY\_' or 'SRC\_' for source inputs.
  All other keys can be mapped in key-mapping.json.
  - Pay special attention to NEEO's button groups, i.e. the special button naming. See: https://github.com/NEEOInc/neeo-sdk 

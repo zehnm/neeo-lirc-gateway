@@ -4,8 +4,9 @@
   "description": "This driver adds LIRC irsend support to NEEO",
   "main": "index.js",
   "dependencies": {
+    "lirc-client": "*",
     "neeo-sdk": "*",
-    "lirc-client": "*"
+    "wait.for": "^0.6.6"
   },
   "engines": {
     "node": ">=6.0.0"
